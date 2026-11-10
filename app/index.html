@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GateFlat — the $WIF gate on Robinhood Chain</title>
+<style>
+  :root {
+    --bg: #07090c;
+    --panel: #0e1218;
+    --panel-2: #121823;
+    --line: #1e2635;
+    --ink: #e8eef7;
+    --muted: #93a1b5;
+    --green: #00d084;
+    --green-dim: #0a2e22;
+    --gold: #f5c542;
+    --red: #ff5d6c;
+    --amber: #ffb454;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  a { color: var(--green); }
+  header {
+    padding: 28px 20px 8px; max-width: 1080px; margin: 0 auto;
+    display: flex; gap: 24px; align-items: center; flex-wrap: wrap;
+  }
+  .globe-wrap { perspective: 900px; flex: 0 0 auto; }
+  .globe {
+    width: 148px; height: 148px; border-radius: 50%;
+    position: relative; transform-style: preserve-3d;
+    background:
+      radial-gradient(circle at 34% 30%, #1d3a2a 0%, #0e1f16 42%, #07090c 78%),
+      #0b120d;
+    border: 1px solid #24402f;
+    box-shadow: 0 0 0 1px #0a0f0a, 0 0 44px rgba(0, 208, 132, .28),
+      inset 0 -18px 34px rgba(0, 0, 0, .65);
+    animation: spin 36s linear infinite;
+    will-change: transform;
+  }
+  .globe::before, .globe::after {
+    content: ""; position: absolute; left: 8%; right: 8%;
+    border: 1px solid rgba(0, 208, 132, .35); border-radius: 50%;
+  }
+  .globe::before { top: 24%; bottom: 24%; }
+  .globe::after { top: 40%; bottom: 40%; border-color: rgba(0, 208, 132, .22); }
+  .globe .core {
+    position: absolute; inset: 34%; border-radius: 50%;
+    background: radial-gradient(circle, rgba(0, 208, 132, .9), rgba(0, 208, 132, .15) 60%, transparent 72%);
+    animation: pulse 3.2s ease-in-out infinite;
+    will-change: transform, opacity;
+  }
+  @keyframes spin { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
+  @keyframes pulse { 0%, 100% { transform: scale(1); opacity: .85; } 50% { transform: scale(1.18); opacity: 1; } }
+  h1 { font-size: 30px; margin: 0 0 4px; letter-spacing: -.02em; }
+  h1 .wif { color: var(--green); }
+  .tag { color: var(--muted); max-width: 560px; margin: 0; }
+  .chip-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .chip {
+    font-size: 12.5px; padding: 4px 10px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--muted);
+  }
+  .chip b { color: var(--ink); font-weight: 600; }
+  .chip.ok b { color: var(--green); }
+  .chip.warn b { color: var(--amber); }
+  main { max-width: 1080px; margin: 0 auto; padding: 12px 20px 40px; }
+  .grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 16px; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 18px;
+  }
+  .card h2 { font-size: 17px; margin: 0 0 4px; }
+  .card p.sub { color: var(--muted); font-size: 13.5px; margin: 0 0 14px; }
+  label { display: block; font-size: 12.5px; color: var(--muted); margin: 10px 0 4px; }
+  input, textarea, select {
+    width: 100%; background: var(--panel-2); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 9px 11px; font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  textarea { min-height: 74px; resize: vertical; }
+  input:focus, textarea:focus { outline: 2px solid rgba(0, 208, 132, .5); border-color: var(--green); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn {
+    display: inline-block; border: 0; cursor: pointer; border-radius: 999px;
+    padding: 11px 20px; font: 600 15px/1.2 system-ui, sans-serif;
+    background: var(--green); color: #04120b;
+    transition: transform .18s ease, box-shadow .18s ease;
+    will-change: transform;
+  }
+  .btn:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 24px rgba(0, 208, 132, .35); }
+  .btn:active { transform: translateY(0) scale(.98); }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .btn.ghost:hover { box-shadow: none; border-color: var(--green); }
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+  .verdict {
+    display: none; margin-top: 16px; border-radius: 12px; padding: 14px;
+    border: 1px solid var(--line); background: var(--panel-2);
+    animation: rise .35s ease;
+    will-change: transform, opacity;
+  }
+  @keyframes rise { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .verdict.show { display: block; }
+  .verdict .badge {
+    display: inline-block; font-weight: 700; letter-spacing: .06em;
+    padding: 4px 12px; border-radius: 999px; font-size: 14px;
+  }
+  .verdict.ALLOW .badge { background: var(--green-dim); color: var(--green); }
+  .verdict.HOLD .badge { background: #2e230a; color: var(--amber); }
+  .verdict.BLOCK .badge { background: #2e0d12; color: var(--red); }
+  .verdict .reason { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 14px; font-size: 13.5px; margin-top: 10px; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; font-family: ui-monospace, monospace; word-break: break-all; }
+  pre {
+    background: #080b0f; border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px; overflow: auto; font-size: 12.5px; line-height: 1.5;
+    max-height: 260px; white-space: pre-wrap; word-break: break-word;
+  }
+  .fine { font-size: 12.5px; color: var(--muted); }
+  .flywheel-tier { font-weight: 700; }
+  .flywheel-tier.holder { color: var(--green); }
+  .flywheel-tier.non_holder { color: var(--muted); }
+  .flywheel-tier.unknown { color: var(--amber); }
+  .receipts { list-style: none; margin: 0; padding: 0; font-size: 13.5px; }
+  .receipts li { padding: 8px 0; border-top: 1px solid var(--line); }
+  .receipts li:first-child { border-top: 0; }
+  .mono { font-family: ui-monospace, monospace; }
+  footer { max-width: 1080px; margin: 0 auto; padding: 0 20px 36px; color: var(--muted); font-size: 13px; }
+  .motion-toggle { position: fixed; right: 14px; bottom: 14px; z-index: 10; }
+  body.low-motion .globe, body.low-motion .globe .core, body.low-motion .verdict { animation: none; }
+  body.low-motion .btn:hover { transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .globe, .globe .core, .verdict { animation: none; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="globe-wrap" aria-hidden="true"><div class="globe"><div class="core"></div></div></div>
+  <div>
+    <h1>GateFlat <span class="wif">— the $WIF gate</span></h1>
+    <p class="tag">A fail-closed gate for agent-drafted contract calls on Robinhood Chain.
+      Secrets get blocked, unknown destinations get held, and every decision leaves a masked receipt
+      plus a prepared onchain record. $WIF holders run the gate at half price.</p>
+    <div class="chip-row">
+      <span class="chip" id="chain-chip">Chain: <b>checking…</b></span>
+      <span class="chip">Network: <b>Robinhood Chain · 4663</b></span>
+      <span class="chip warn">Contracts: <b>not deployed</b></span>
+      <span class="chip">Credits: <b>demo USDG ledger</b></span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="grid">
+    <section class="card" aria-label="Gate console">
+      <h2>Gate console</h2>
+      <p class="sub">Draft a contract call. The gate scans it, checks the destination, and charges one
+        demo USDG run — 0.01 standard, 0.005 for $WIF holders.</p>
+      <form id="gate-form">
+        <label for="to">To (contract address)</label>
+        <input id="to" value="0x1111111111111111111111111111111111111111">
+        <div class="row">
+          <div>
+            <label for="value">Value (wei, decimal string)</label>
+            <input id="value" value="0">
+          </div>
+          <div>
+            <label for="function">Function (optional)</label>
+            <input id="function" value="ping()">
+          </div>
+        </div>
+        <label for="data">Data (0x hex calldata)</label>
+        <input id="data" value="0x">
+        <label for="code">Agent-drafted code (optional — policy engine scans it)</label>
+        <textarea id="code" placeholder="e.g. import os&#10;print('hello')"></textarea>
+        <label for="memo">Memo (optional — scanned for secrets like everything else)</label>
+        <input id="memo" placeholder="never put a credential here">
+        <div class="row">
+          <div>
+            <label for="account">Account (demo ledger)</label>
+            <input id="account" value="demo-agent-001">
+          </div>
+          <div>
+            <label for="wif">Your wallet (optional — $WIF holder check)</label>
+            <input id="wif" placeholder="0x… your MetaMask address">
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn" type="submit" id="run-btn">Run the gate</button>
+          <span class="fine" id="run-note">Nothing is sent onchain. The result is a prepared record.</span>
+        </div>
+      </form>
+      <div class="verdict" id="verdict" role="status">
+        <span class="badge" id="verdict-badge">—</span>
+        <p class="reason" id="verdict-reason"></p>
+        <dl class="kv" id="verdict-kv"></dl>
+        <label>Prepared onchain record (GateAudit.recordDecision — not sent)</label>
+        <pre id="verdict-record">{}</pre>
+        <div class="btn-row">
+          <button class="btn ghost" type="button" id="copy-record">Copy record</button>
+        </div>
+      </div>
+    </section>
+
+    <div>
+      <section class="card" aria-label="WIF flywheel" style="margin-bottom:16px">
+        <h2>$WIF flywheel</h2>
+        <p class="sub">Hold $WIF on Robinhood Chain and every gate run costs half price.
+          Balance is read live with one eth_call — no wallet connection, no signing.</p>
+        <div class="row">
+          <div style="grid-column: 1 / -1">
+            <label for="wif-check">Wallet address</label>
+            <input id="wif-check" placeholder="0x…">
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn ghost" type="button" id="wif-btn">Check $WIF balance</button>
+        </div>
+        <dl class="kv" id="wif-kv"></dl>
+        <p class="fine" id="wif-note">Token address is from a secondary source and is labelled unverified —
+          a failed read means “unknown”, never a fake holder status.</p>
+      </section>
+
+      <section class="card" aria-label="Credits" style="margin-bottom:16px">
+        <h2>USDG credits <span class="fine">(demo)</span></h2>
+        <p class="sub">Local demo ledger. No real USDG moves; the faucet mints demo credit out of nothing.</p>
+        <dl class="kv" id="credits-kv">
+          <dt>Balance</dt><dd>—</dd>
+        </dl>
+        <div class="btn-row">
+          <button class="btn ghost" type="button" id="topup-btn">Demo faucet +10 USDG</button>
+          <button class="btn ghost" type="button" id="refresh-btn">Refresh</button>
+        </div>
+      </section>
+
+      <section class="card" aria-label="Recent receipts">
+        <h2>Recent receipts</h2>
+        <p class="sub">Masked by design — a receipt never carries secret material.</p>
+        <ul class="receipts" id="receipts"><li class="fine">No receipts yet this session.</li></ul>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <p><strong>Honest limits.</strong> GateFlat is a demo: the GateAudit + PolicyRegistry contracts are written but
+    not deployed, the USDG ledger is local demo credit, and no transaction is ever sent from this page.
+    The $WIF token address is unverified (secondary source only). Real onchain records need the team lead's own
+    wallet — nothing here asks for a key or a seed phrase, ever. Built for the World Is Flat Hackathon
+    (Robinhood Chain) · deadline 12 Nov 2026, 23:00 IST.</p>
+</footer>
+
+<button class="btn ghost motion-toggle" type="button" id="motion-btn" aria-pressed="false">Low motion: off</button>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const account = () => $("account").value.trim() || "demo-agent-001";
+
+async function jget(path) {
+  const r = await fetch(path);
+  return r.json();
+}
+async function jpost(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return r.json();
+}
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+async function refreshChain() {
+  try {
+    const c = await jget("/api/chain");
+    const chip = $("chain-chip");
+    if (c.reachable) {
+      chip.className = "chip ok";
+      chip.innerHTML = `Chain: <b>live · block ${Number(c.block_number).toLocaleString("en-US")}</b>`;
+    } else {
+      chip.className = "chip warn";
+      chip.innerHTML = `Chain: <b>unreachable right now</b>`;
+    }
+  } catch (e) { /* offline demo: chip keeps its checking state */ }
+}
+
+async function refreshCredits() {
+  try {
+    const c = await jget("/api/credits?account=" + encodeURIComponent(account()));
+    $("credits-kv").innerHTML =
+      `<dt>Balance</dt><dd>${esc(c.balance_usdg)} USDG</dd>` +
+      `<dt>Run cost</dt><dd>${esc(c.run_cost_usdg)} USDG</dd>` +
+      `<dt>Runs left</dt><dd>${esc(c.runs_remaining)}</dd>`;
+  } catch (e) { /* ignore */ }
+}
+
+async function refreshReceipts() {
+  try {
+    const d = await jget("/api/receipts?limit=6");
+    if (!d.receipts || !d.receipts.length) return;
+    $("receipts").innerHTML = d.receipts.map((r) =>
+      `<li><span class="mono">${esc(r.receipt_id)}</span> · <b>${esc(r.verdict)}</b> · ${esc(r.gate)} · ${esc(r.created_at || "")}</li>`
+    ).join("");
+  } catch (e) { /* ignore */ }
+}
+
+$("gate-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const btn = $("run-btn");
+  btn.disabled = true; btn.textContent = "Gating…";
+  const body = {
+    to: $("to").value.trim(),
+    value: $("value").value.trim(),
+    data: $("data").value.trim(),
+    account: account(),
+  };
+  if ($("function").value.trim()) body.function = $("function").value.trim();
+  if ($("code").value.trim()) body.code = $("code").value;
+  if ($("memo").value.trim()) body.memo = $("memo").value;
+  if ($("wif").value.trim()) body.wif_address = $("wif").value.trim();
+  try {
+    const r = await jpost("/api/gate", body);
+    const v = $("verdict");
+    v.className = "verdict show " + (r.decision || "HOLD");
+    $("verdict-badge").textContent = r.decision || "—";
+    $("verdict-reason").textContent = r.reason || "";
+    $("verdict-kv").innerHTML =
+      `<dt>Receipt</dt><dd>${esc(r.receipt && r.receipt.receipt_id)}</dd>` +
+      `<dt>Charged</dt><dd>${esc(r.credits && r.credits.balance_after_usdg)} USDG left` +
+      (r.credits && r.credits.wif_discount_applied ? ` · $WIF 50% discount applied` : ``) + `</dd>` +
+      (r.wif ? `<dt>$WIF</dt><dd>${esc(r.wif.tier)} — ${esc(r.wif.run_cost_usdg)} USDG/run</dd>` : ``) +
+      `<dt>Destination</dt><dd>${esc(r.destination && r.destination.status)} — ${esc(r.destination && r.destination.reason)}</dd>`;
+    $("verdict-record").textContent = JSON.stringify(r.onchain_record || {}, null, 2);
+    refreshCredits(); refreshReceipts();
+  } catch (e) {
+    $("verdict").className = "verdict show HOLD";
+    $("verdict-badge").textContent = "ERROR";
+    $("verdict-reason").textContent = "The gate did not answer: " + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = "Run the gate";
+  }
+});
+
+$("copy-record").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($("verdict-record").textContent); $("copy-record").textContent = "Copied ✓"; setTimeout(() => { $("copy-record").textContent = "Copy record"; }, 1500); } catch (e) { /* clipboard unavailable */ }
+});
+
+$("wif-btn").addEventListener("click", async () => {
+  const addr = $("wif-check").value.trim();
+  if (!addr) return;
+  $("wif-btn").disabled = true; $("wif-btn").textContent = "Reading chain…";
+  try {
+    const d = await jget("/api/wif?address=" + encodeURIComponent(addr));
+    const tier = (d.flywheel && d.flywheel.tier) || "unknown";
+    $("wif-kv").innerHTML =
+      `<dt>Status</dt><dd><span class="flywheel-tier ${esc(tier)}">${esc(tier.replace("_", " "))}</span></dd>` +
+      `<dt>Balance</dt><dd>${esc(d.balance_wif ?? "—")} $WIF</dd>` +
+      `<dt>Run cost</dt><dd>${esc(d.flywheel && d.flywheel.run_cost_usdg)} USDG (${esc(d.flywheel && d.flywheel.discount)} off)</dd>` +
+      (d.error ? `<dt>Note</dt><dd>${esc(d.error)}</dd>` : ``);
+    $("wif").value = addr; // reuse for the next gate run
+  } catch (e) {
+    $("wif-kv").innerHTML = `<dt>Note</dt><dd>Could not read the chain: ${esc(e.message)}</dd>`;
+  } finally {
+    $("wif-btn").disabled = false; $("wif-btn").textContent = "Check $WIF balance";
+  }
+});
+
+$("topup-btn").addEventListener("click", async () => {
+  await jpost("/api/credits/topup", { account: account() });
+  refreshCredits();
+});
+$("refresh-btn").addEventListener("click", () => { refreshCredits(); refreshReceipts(); refreshChain(); });
+
+$("motion-btn").addEventListener("click", () => {
+  const on = document.body.classList.toggle("low-motion");
+  $("motion-btn").textContent = "Low motion: " + (on ? "on" : "off");
+  $("motion-btn").setAttribute("aria-pressed", String(on));
+});
+
+refreshChain(); refreshCredits(); refreshReceipts();
+setInterval(refreshChain, 30000);
+</script>
+</body>
+</html>
