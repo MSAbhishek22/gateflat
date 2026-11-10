@@ -66,27 +66,27 @@ Tangem, Triport, viem chain definitions — consistent 10 Nov 2026.
   app is fail-soft (unreachable chain = "unreachable", never a crash),
   and the Vercel deployment must be checked live via its own
   /api/chain + /api/wif.
-- **Vercel probe 10 Nov 19:55 IST: HTTP 403.** The live
-  /api/chain (verified by reading the live endpoint) returns
-  reachable:false, "HTTP Error 403: Forbidden" — the official RPC
-  rejects requests from Vercel's servers. Public no-key fallbacks
-  (publicnode, drpc, blockmachine — vectr.bot listing, secondary)
-  were added the same evening (`rpc_call` tries official first,
-  then fallbacks; chainId checked every time). **Redeploy check
-  ~20:05 IST: new code IS live (`rpc_used` field present) but still
-  unreachable:false with 403** — and the whole probe answered in
-  ~1.4s, so the fallbacks failed fast too, not by timeout. New
-  hypothesis: the RPC front-doors block the default
-  "Python-urllib/3.x" User-Agent. **Fix shipped:** `_rpc_call` now
-  sends `User-Agent: GateFlat/1.0 (+https://gateflat.vercel.app)`.
-  Live re-check pending the auto-deploy. If the UA fix also fails,
-  next option is the Blockscout explorer API as a read path.
+- **Vercel probe 10 Nov 19:55 IST: HTTP 403 — RESOLVED 20:07 IST.**
+  The live /api/chain first returned reachable:false, "HTTP Error
+  403: Forbidden". Root cause found by timing: the whole probe
+  answered in ~1.4s, so every endpoint failed fast — the RPC
+  front-doors were blocking the default "Python-urllib/3.x"
+  User-Agent, not Vercel's IPs. Fix: `_rpc_call` sends
+  `User-Agent: GateFlat/1.0 (+https://gateflat.vercel.app)`; the
+  official RPC then answered live (chain 4663, block 110954109).
+  Public no-key fallbacks (publicnode, drpc, blockmachine —
+  vectr.bot listing, secondary) remain in `rpc_call` as backup;
+  chainId is checked on every probe.
 
 ## 4. $WIF token — UNVERIFIED (secondary source only)
 
 - **RobinWifHat 0xE49A1C3033EcC6b804bc423021D3F71F1A3e0F9B** — from a
   secondary GitHub README (wif-desk) only. NOT verified on the
   official worldisflat.fun pages or on the Blockscout explorer.
+  **Weak live evidence 10 Nov 20:07 IST:** a `balanceOf` call to it
+  returned a proper 32-byte zero (not empty returndata), consistent
+  with a real ERC-20 at that address — but the token identity is
+  still unverified.
 - Decimals assumed 18 (ERC-20 default, unverified for this token).
   A wrong decimals value only mis-scales the displayed balance; the
   holder test (balance > 0) is unaffected.

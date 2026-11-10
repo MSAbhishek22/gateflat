@@ -32,17 +32,18 @@ a state; README/CONCEPT/DESIGN defer to it.
   (free Hobby; deployment dpl_5TZPUGc7Ro2YuvnCgWCKJKV3fSPz; verified
   in the browser: homepage loads, `/api/health` ok, `/api/gate`
   ALLOW live with receipt HSG-20261110-142525-0001, 9.99 USDG left).
-- **RPC 403 on Vercel (found 10 Nov 19:55 IST):** the live
-  `/api/chain` returns reachable:false, "HTTP Error 403: Forbidden"
-  — the official Robinhood RPC rejects Vercel's servers. The site
-  header honestly shows "Chain: unreachable right now". **Fix
-  shipped same evening:** `rpc_call` fallback — official RPC first,
-  then public no-key endpoints (publicnode, drpc, blockmachine);
-  chainId is checked on every probe, so a fallback answering for a
-  different chain is rejected. **Not yet verified live** — the
-  sandbox cannot reach any RPC at all right now (all endpoints time
-  out from here), so the live /api/chain after the redeploy is the
-  real test.
+- **Chain LIVE from Vercel 10 Nov ~20:07 IST (verified by curl):**
+  `/api/chain` reachable:true, chain_id 4663 (0x1237, match),
+  block 110954109, rpc_used = official RPC. The 403 was the
+  default "Python-urllib/3.x" User-Agent being blocked — sending
+  `User-Agent: GateFlat/1.0` fixed it; the official RPC answered.
+  **$WIF read LIVE too:** `/api/wif` for the demo address returned
+  balance_raw 0, balance_wif "0", error null, rpc_used official —
+  a proper 32-byte zero (not empty returndata), consistent with a
+  real ERC-20 at the token address, though the token identity is
+  still unverified. `/api/gate` with wif_address: ALLOW, chain
+  reachable, tier non_holder, 9.99 USDG left. The full live loop
+  works.
 - GitHub repo: **created + pushed 10 Nov ~20:00 IST** —
   https://github.com/MSAbhishek22/gateflat, head
   `15f47053560097e21413df594d3d0a20111fbf4c` (RPC-fallback commit;
