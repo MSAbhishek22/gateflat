@@ -45,10 +45,10 @@ a state; README/CONCEPT/DESIGN defer to it.
   real test.
 - GitHub repo: **created + pushed 10 Nov ~20:00 IST** —
   https://github.com/MSAbhishek22/gateflat, head
-  `3960c905553575f479103a7d27c2fca33e53f940` (33 files; provider
-  "Initial commit" underneath, as expected — our README replaced
-  the generated one). Read back live: README.md on main is the
-  GateFlat README. Sync record saved.
+  `15f47053560097e21413df594d3d0a20111fbf4c` (RPC-fallback commit;
+  33 files + fallback fix; provider "Initial commit" underneath).
+  Read back live: README.md on main is the GateFlat README.
+  Sync record saved.
 
 ## What is SCAFFOLD (written, not live)
 
