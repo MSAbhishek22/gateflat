@@ -56,7 +56,7 @@ HOLDER_RUN_COST = Decimal("0.005")  # 50% off for $WIF holders
 
 
 def balance_of(address: str, network: str = "mainnet",
-               timeout: float = 5.0) -> dict:
+               timeout: float = 5.0, deadline: float | None = None) -> dict:
     """Read a wallet's $WIF balance on Robinhood Chain. Fail-soft.
 
     Returns a dict: address, balance_raw (wei-style int or None),
@@ -81,7 +81,8 @@ def balance_of(address: str, network: str = "mainnet",
     try:
         raw_hex, rpc_used = rpc_call(
             network, "eth_call",
-            [{"to": WIF_TOKEN, "data": data}, "latest"], timeout)
+            [{"to": WIF_TOKEN, "data": data}, "latest"], timeout,
+            deadline=deadline)
         raw = int(raw_hex, 16)
     except Exception as exc:  # noqa: BLE001 — fail-soft by design
         return {"address": address.lower(), "balance_raw": None,

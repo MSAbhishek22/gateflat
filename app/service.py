@@ -48,17 +48,18 @@ _CHAIN_CACHE_TTL = 30.0
 _WIF_CACHE: dict = {}
 
 
-def _cached_chain(network: str) -> dict:
+def _cached_chain(network: str, deadline: float | None = None) -> dict:
     now = time.time()
     hit = _CHAIN_CACHE.get(network)
     if hit and now - hit[0] < _CHAIN_CACHE_TTL:
         return hit[1]
-    status = chain_status(network)
+    status = chain_status(network, deadline=deadline)
     _CHAIN_CACHE[network] = (now, status)
     return status
 
 
-def _cached_wif(address: str, network: str) -> dict:
+def _cached_wif(address: str, network: str,
+                deadline: float | None = None) -> dict:
     """$WIF balance, cached 30s per address so one gate run does not
     hammer the RPC. A failed probe is cached too (as unknown)."""
     key = (network, address.lower())
@@ -66,7 +67,7 @@ def _cached_wif(address: str, network: str) -> dict:
     hit = _WIF_CACHE.get(key)
     if hit and now - hit[0] < _CHAIN_CACHE_TTL:
         return hit[1]
-    info = balance_of(address, network)
+    info = balance_of(address, network, deadline=deadline)
     _WIF_CACHE[key] = (now, info)
     return info
 
@@ -83,6 +84,13 @@ def handle(method: str, path: str, query: dict | None = None,
            body: bytes | None = None) -> tuple[int, str, bytes]:
     """Route one request. Returns (status, content_type, body_bytes)."""
     query = query or {}
+    # One time budget per request for every RPC probe in it (chain
+    # status + $WIF read). Found 10 Nov ~20:45 IST: with a slow RPC
+    # the two probes could burn 4s x 4 fallbacks x 2 calls = 48s and
+    # the gate endpoint hung past a 40s client timeout. With the
+    # budget the gate still decides (full price, chain "unreachable")
+    # instead of hanging — a slow chain never blocks a gate run.
+    deadline = time.monotonic() + 10.0
     if method == "GET" and path in ("/", "/index.html"):
         here = os.path.dirname(os.path.abspath(__file__))
         with open(os.path.join(here, "index.html"), "rb") as fh:
@@ -92,7 +100,7 @@ def handle(method: str, path: str, query: dict | None = None,
         return _json(200, {
             "status": "ok",
             "gate": "gateflat",
-            "chain": _cached_chain("mainnet"),
+            "chain": _cached_chain("mainnet", deadline),
             "onchain": "not_deployed",
             "demo_allowlist": [DEMO_CONTRACT],
             "credits_demo": True,
@@ -100,14 +108,14 @@ def handle(method: str, path: str, query: dict | None = None,
 
     if method == "GET" and path == "/api/chain":
         network = (query.get("network") or ["mainnet"])[0]
-        return _json(200, _cached_chain(network))
+        return _json(200, _cached_chain(network, deadline))
 
     if method == "GET" and path == "/api/wif":
         address = (query.get("address") or [""])[0]
         network = (query.get("network") or ["mainnet"])[0]
         if not address:
             return _json(400, {"error": "address query param required"})
-        info = _cached_wif(address, network)
+        info = _cached_wif(address, network, deadline)
         if info.get("error") and info.get("balance_raw") is None \
                 and "must be a 0x address" in info["error"]:
             return _json(400, {"error": info["error"]})
@@ -154,11 +162,11 @@ def handle(method: str, path: str, query: dict | None = None,
         run_cost = None
         wif_address = data.pop("wif_address", None)
         if wif_address:
-            wif_info = _cached_wif(str(wif_address), network)
+            wif_info = _cached_wif(str(wif_address), network, deadline)
             run_cost = run_cost_for(wif_info)
         result = gate_payload(data, ALLOWLIST, BLOCKLIST, STORE,
                               LEDGER, account, network, run_cost)
-        result["chain"] = _cached_chain(network)
+        result["chain"] = _cached_chain(network, deadline)
         if wif_info is not None:
             result["wif"] = flywheel(wif_info)
         return _json(200, result)

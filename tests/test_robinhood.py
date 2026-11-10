@@ -7,6 +7,7 @@ the fail-soft live chain probe (mocked — no network in tests).
 
 import os
 import sys
+import time
 import unittest
 import urllib.error
 from unittest.mock import patch
@@ -236,6 +237,36 @@ class TestRpcFallback(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             rpc_call("mainnet", "eth_chainId")
         self.assertEqual(_mock.call_count, len(MAINNET_RPCS))
+
+    def test_expired_deadline_raises_without_calling(self):
+        # A slow RPC must never make a gate run hang: once the
+        # budget is gone, rpc_call stops without trying any URL.
+        with patch("robinhood._rpc_call") as mock_call:
+            with self.assertRaises(TimeoutError):
+                rpc_call("mainnet", "eth_chainId",
+                         deadline=time.monotonic() - 1)
+        mock_call.assert_not_called()
+
+    def test_deadline_caps_per_attempt_timeout(self):
+        seen = []
+
+        def capture(url, method, params, timeout):
+            seen.append(timeout)
+            raise RuntimeError("slow")
+
+        with patch("robinhood._rpc_call", side_effect=capture):
+            with self.assertRaises(RuntimeError):
+                rpc_call("mainnet", "eth_chainId",
+                         timeout=4.0,
+                         deadline=time.monotonic() + 0.3)
+        self.assertEqual(len(seen), len(MAINNET_RPCS))
+        self.assertTrue(all(t <= 0.3 for t in seen))
+
+    def test_chain_status_with_expired_deadline_is_fail_soft(self):
+        status = chain_status("mainnet",
+                              deadline=time.monotonic() - 1)
+        self.assertFalse(status["reachable"])
+        self.assertIn("budget", status["error"])
 
     def test_rpc_call_sends_real_user_agent(self):
         # The default "Python-urllib/3.x" UA is blocked outright by

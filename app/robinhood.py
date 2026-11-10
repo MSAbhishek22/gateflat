@@ -53,6 +53,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import time
 import urllib.error
 import urllib.request
 
@@ -270,23 +271,35 @@ def _rpc_call(rpc_url: str, method: str, params=None,
 
 
 def rpc_call(network: str, method: str, params=None,
-             timeout: float = 4.0) -> tuple:
+             timeout: float = 4.0, deadline: float | None = None) -> tuple:
     """One JSON-RPC call with fallback. Tries the official RPC first,
     then each public fallback in order, and returns
     ``(result, url_used)``. Raises the last error only when every URL
     failed, so a single failing endpoint never kills a read. Each
-    attempt is bounded by *timeout* seconds."""
+    attempt is bounded by *timeout* seconds — and, when *deadline* is
+    given (a ``time.monotonic()`` timestamp), the whole sequence is
+    bounded by it: no attempt starts after the deadline, and each
+    attempt's timeout is capped at the time left. A slow RPC must
+    never make a gate run hang for a minute."""
     urls = NETWORKS[network]["rpcs"]
     last_exc = RuntimeError("no RPC URL configured")
     for url in urls:
+        if deadline is not None:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("RPC budget exhausted")
+            attempt_timeout = min(timeout, remaining)
+        else:
+            attempt_timeout = timeout
         try:
-            return _rpc_call(url, method, params, timeout), url
+            return _rpc_call(url, method, params, attempt_timeout), url
         except Exception as exc:  # noqa: BLE001 — try the next URL
             last_exc = exc
     raise last_exc
 
 
-def chain_status(network: str = "mainnet", timeout: float = 5.0) -> dict:
+def chain_status(network: str = "mainnet", timeout: float = 5.0,
+                 deadline: float | None = None) -> dict:
     """Probe the live Robinhood Chain. Fail-soft: never raises.
 
     Returns a dict with network, chain_id, block_number (ints when the
@@ -301,9 +314,9 @@ def chain_status(network: str = "mainnet", timeout: float = 5.0) -> dict:
     net = NETWORKS[network]
     try:
         chain_hex, rpc_used = rpc_call(network, "eth_chainId",
-                                       timeout=timeout)
+                                       timeout=timeout, deadline=deadline)
         block_hex, _ = rpc_call(network, "eth_blockNumber",
-                                timeout=timeout)
+                                timeout=timeout, deadline=deadline)
         chain_id = int(chain_hex, 16)
         block = int(block_hex, 16)
         ok = chain_id == net["chain_id"]
