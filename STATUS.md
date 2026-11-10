@@ -18,16 +18,31 @@ a state; README/CONCEPT/DESIGN defer to it.
 - New integration layer (`app/robinhood.py`, `app/wif.py`,
   `app/credits.py`, `app/gate.py`, `app/service.py`) + local demo server
   + Flat Globe front-end — written and tested.
-- **Tests: 108/108 PASS** — `python3 -m unittest discover -s tests`,
+- **Tests: 112/112 PASS** — `python3 -m unittest discover -s tests`,
   Python 3.12, Linux sandbox, ~0.6s.
-  Breakdown: scanner 18 (ported) + policy 6 (ported) + robinhood 33
+  Breakdown: scanner 18 (ported) + policy 6 (ported) + robinhood 36
   (new) + credits 10 (new) + gate 19 (adapted) + service 12 (new) +
-  wif 10 (new).
+  wif 11 (new).
 - Local smoke test 10 Nov ~19:50 IST: `/` 200 (17,677 B Flat Globe UI),
   `/api/gate` ALLOW on the demo contract (balance 10.00 → 9.99 USDG),
   `/api/gate` BLOCK on a leaked GitHub token (secret absent from the
   receipt), `/api/wif` bad address → 400, `/api/credits` consistent
   across two runs (9.98 USDG).
+- **Vercel deploy LIVE 10 Nov ~19:55 IST: https://gateflat.vercel.app/**
+  (free Hobby; deployment dpl_5TZPUGc7Ro2YuvnCgWCKJKV3fSPz; verified
+  in the browser: homepage loads, `/api/health` ok, `/api/gate`
+  ALLOW live with receipt HSG-20261110-142525-0001, 9.99 USDG left).
+- **RPC 403 on Vercel (found 10 Nov 19:55 IST):** the live
+  `/api/chain` returns reachable:false, "HTTP Error 403: Forbidden"
+  — the official Robinhood RPC rejects Vercel's servers. The site
+  header honestly shows "Chain: unreachable right now". **Fix
+  shipped same evening:** `rpc_call` fallback — official RPC first,
+  then public no-key endpoints (publicnode, drpc, blockmachine);
+  chainId is checked on every probe, so a fallback answering for a
+  different chain is rejected. **Not yet verified live** — the
+  sandbox cannot reach any RPC at all right now (all endpoints time
+  out from here), so the live /api/chain after the redeploy is the
+  real test.
 - GitHub repo: **created + pushed 10 Nov ~20:00 IST** —
   https://github.com/MSAbhishek22/gateflat, head
   `3960c905553575f479103a7d27c2fca33e53f940` (33 files; provider

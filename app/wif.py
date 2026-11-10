@@ -36,13 +36,10 @@ HONEST LIMITS — read before citing this as verified:
 
 from __future__ import annotations
 
-import json
 import re
-import urllib.error
-import urllib.request
 from decimal import Decimal
 
-from robinhood import NETWORKS
+from robinhood import NETWORKS, rpc_call
 
 # $WIF token — UNVERIFIED (secondary source only, see module docstring).
 WIF_TOKEN = "0xE49A1C3033EcC6b804bc423021D3F71F1A3e0F9B"
@@ -56,24 +53,6 @@ _ADDRESS_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
 # Run costs (demo USDG ledger — see credits.py).
 STANDARD_RUN_COST = Decimal("0.01")
 HOLDER_RUN_COST = Decimal("0.005")  # 50% off for $WIF holders
-
-
-def _eth_call(rpc_url: str, to: str, data: str,
-              timeout: float = 5.0) -> str:
-    """One eth_call. Returns the raw hex result, or raises on failure."""
-    body = json.dumps({
-        "jsonrpc": "2.0", "method": "eth_call",
-        "params": [{"to": to, "data": data}, "latest"], "id": 1,
-    }).encode("utf-8")
-    req = urllib.request.Request(
-        rpc_url, data=body,
-        headers={"Content-Type": "application/json"}, method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        payload = json.loads(resp.read().decode("utf-8"))
-    if "error" in payload:
-        raise RuntimeError(str(payload["error"]))
-    return payload["result"]
 
 
 def balance_of(address: str, network: str = "mainnet",
@@ -90,26 +69,31 @@ def balance_of(address: str, network: str = "mainnet",
         return {"address": address, "balance_raw": None,
                 "balance_wif": None, "is_holder": False,
                 "token": WIF_TOKEN, "token_verified": False,
+                "rpc_used": None,
                 "error": "address must be a 0x address (40 hex chars)"}
     if network not in NETWORKS:
         return {"address": address.lower(), "balance_raw": None,
                 "balance_wif": None, "is_holder": False,
                 "token": WIF_TOKEN, "token_verified": False,
+                "rpc_used": None,
                 "error": f"unknown network: {network}"}
     data = _BALANCE_OF_SELECTOR + address[2:].lower().rjust(64, "0")
     try:
-        raw_hex = _eth_call(NETWORKS[network]["rpc"], WIF_TOKEN, data,
-                            timeout)
+        raw_hex, rpc_used = rpc_call(
+            network, "eth_call",
+            [{"to": WIF_TOKEN, "data": data}, "latest"], timeout)
         raw = int(raw_hex, 16)
     except Exception as exc:  # noqa: BLE001 — fail-soft by design
         return {"address": address.lower(), "balance_raw": None,
                 "balance_wif": None, "is_holder": False,
                 "token": WIF_TOKEN, "token_verified": False,
+                "rpc_used": None,
                 "error": str(exc)[:200]}
     balance = Decimal(raw) / Decimal(10 ** WIF_DECIMALS)
     return {"address": address.lower(), "balance_raw": raw,
             "balance_wif": str(balance), "is_holder": raw > 0,
             "token": WIF_TOKEN, "token_verified": False,
+            "rpc_used": rpc_used,
             "error": None}
 
 

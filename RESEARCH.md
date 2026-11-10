@@ -66,6 +66,16 @@ Tangem, Triport, viem chain definitions — consistent 10 Nov 2026.
   app is fail-soft (unreachable chain = "unreachable", never a crash),
   and the Vercel deployment must be checked live via its own
   /api/chain + /api/wif.
+- **Vercel probe 10 Nov 19:55 IST: HTTP 403.** The live
+  /api/chain (verified by reading the live endpoint) returns
+  reachable:false, "HTTP Error 403: Forbidden" — the official RPC
+  rejects requests from Vercel's servers. Public no-key fallbacks
+  (publicnode, drpc, blockmachine — vectr.bot listing, secondary)
+  were added the same evening (`rpc_call` tries official first,
+  then fallbacks; chainId checked every time). The sandbox cannot
+  reach ANY RPC right now (all four endpoints time out from here),
+  so the fallback is **verified by mocked tests only** — the live
+  /api/chain after redeploy is the real test.
 
 ## 4. $WIF token — UNVERIFIED (secondary source only)
 

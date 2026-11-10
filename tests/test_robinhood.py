@@ -8,6 +8,7 @@ the fail-soft live chain probe (mocked — no network in tests).
 import os
 import sys
 import unittest
+import urllib.error
 from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
@@ -16,6 +17,8 @@ import robinhood
 from robinhood import (
     MAINNET_CHAIN_ID,
     MAINNET_RPC,
+    MAINNET_RPCS,
+    MAINNET_RPC_FALLBACKS,
     TESTNET_CHAIN_ID,
     TESTNET_RPC,
     PayloadError,
@@ -25,6 +28,7 @@ from robinhood import (
     check_destination,
     encode_verdict,
     payload_hash,
+    rpc_call,
     rules_hash,
     verdict_name,
 )
@@ -185,6 +189,7 @@ class TestChainStatus(unittest.TestCase):
         self.assertEqual(st["chain_id"], 4663)
         self.assertEqual(st["block_number"], 0x69C8EFB)
         self.assertTrue(st["chain_id_match"])
+        self.assertEqual(st["rpc_used"], MAINNET_RPC)  # official first
 
     @patch("robinhood._rpc_call", side_effect=["0x1", "0x100"])
     def test_chain_id_mismatch_unreachable(self, _mock):
@@ -198,10 +203,39 @@ class TestChainStatus(unittest.TestCase):
         self.assertFalse(st["reachable"])
         self.assertIsNone(st["block_number"])
         self.assertIn("boom", st["error"])
+        self.assertIsNone(st["rpc_used"])
 
     def test_unknown_network_fail_soft(self):
         st = chain_status("mars")
         self.assertFalse(st["reachable"])
+
+
+class TestRpcFallback(unittest.TestCase):
+    def test_fallback_answers_when_official_403s(self):
+        err = urllib.error.HTTPError(
+            MAINNET_RPC, 403, "Forbidden", {}, None)
+        with patch("robinhood._rpc_call",
+                   side_effect=[err, "0x1237"]) as mock_call:
+            result, used = rpc_call("mainnet", "eth_chainId")
+        self.assertEqual(result, "0x1237")
+        self.assertEqual(used, MAINNET_RPC_FALLBACKS[0])
+        self.assertEqual(mock_call.call_count, 2)
+        self.assertEqual(mock_call.call_args_list[0][0][0], MAINNET_RPC)
+
+    @patch("robinhood._rpc_call", side_effect=[
+        urllib.error.HTTPError(MAINNET_RPC, 403, "Forbidden", {}, None),
+        "0x1237", "0x69c8efb"])
+    def test_chain_status_reachable_via_fallback(self, _mock):
+        st = chain_status("mainnet")
+        self.assertTrue(st["reachable"])
+        self.assertEqual(st["chain_id"], 4663)
+        self.assertEqual(st["rpc_used"], MAINNET_RPC_FALLBACKS[0])
+
+    @patch("robinhood._rpc_call", side_effect=RuntimeError("down"))
+    def test_all_fallbacks_failing_raises_last_error(self, _mock):
+        with self.assertRaises(RuntimeError):
+            rpc_call("mainnet", "eth_chainId")
+        self.assertEqual(_mock.call_count, len(MAINNET_RPCS))
 
 
 if __name__ == "__main__":

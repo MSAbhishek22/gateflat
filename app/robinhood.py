@@ -77,12 +77,28 @@ TESTNET_EXPLORER = "https://explorer.testnet.chain.robinhood.com"
 GAS_TOKEN = "ETH"
 STABLECOIN = "USDG"  # Paxos USD stablecoin; native stablecoin of the chain.
 
+# Fallback RPCs (public, no key) — added 10 Nov 2026 after the official
+# RPC returned HTTP 403 to Vercel's servers and timed out from this
+# sandbox. Sources: vectr.bot Robinhood Chain reference (secondary —
+# the endpoints are public infrastructure, verified by calling them,
+# not by the listing). The official RPC is always tried first; a
+# fallback answers only when the official one fails. A fallback that
+# answers is still the same chain (chainId is checked on every probe).
+MAINNET_RPC_FALLBACKS = [
+    "https://robinhood-rpc.publicnode.com",
+    "https://robinhood.drpc.org",
+    "https://rpc-robinhood.blockmachine.io",
+]
+MAINNET_RPCS = [MAINNET_RPC, *MAINNET_RPC_FALLBACKS]
+TESTNET_RPCS = [TESTNET_RPC]
+
 NETWORKS = {
     "mainnet": {
         "name": "Robinhood Chain",
         "chain_id": MAINNET_CHAIN_ID,
         "chain_id_hex": MAINNET_CHAIN_ID_HEX,
         "rpc": MAINNET_RPC,
+        "rpcs": MAINNET_RPCS,
         "explorer": MAINNET_EXPLORER,
         "gas_token": GAS_TOKEN,
     },
@@ -91,6 +107,7 @@ NETWORKS = {
         "chain_id": TESTNET_CHAIN_ID,
         "chain_id_hex": TESTNET_CHAIN_ID_HEX,
         "rpc": TESTNET_RPC,
+        "rpcs": TESTNET_RPCS,
         "explorer": TESTNET_EXPLORER,
         "gas_token": GAS_TOKEN,
     },
@@ -225,10 +242,13 @@ def check_destination(to: str, allowlist, blocklist) -> tuple[str, str]:
     return "UNKNOWN", "destination is on neither list"
 
 
-def _rpc_call(rpc_url: str, method: str, timeout: float = 5.0):
-    """One JSON-RPC call. Returns the result, or raises on any failure."""
+def _rpc_call(rpc_url: str, method: str, params=None,
+              timeout: float = 4.0):
+    """One JSON-RPC call against one URL. Returns the result, or raises
+    on any failure (network error, timeout, or an error object)."""
     body = json.dumps(
-        {"jsonrpc": "2.0", "method": method, "params": [], "id": 1}
+        {"jsonrpc": "2.0", "method": method,
+         "params": params if params is not None else [], "id": 1}
     ).encode("utf-8")
     req = urllib.request.Request(
         rpc_url, data=body,
@@ -242,21 +262,41 @@ def _rpc_call(rpc_url: str, method: str, timeout: float = 5.0):
     return data["result"]
 
 
+def rpc_call(network: str, method: str, params=None,
+             timeout: float = 4.0) -> tuple:
+    """One JSON-RPC call with fallback. Tries the official RPC first,
+    then each public fallback in order, and returns
+    ``(result, url_used)``. Raises the last error only when every URL
+    failed, so a single failing endpoint never kills a read. Each
+    attempt is bounded by *timeout* seconds."""
+    urls = NETWORKS[network]["rpcs"]
+    last_exc = RuntimeError("no RPC URL configured")
+    for url in urls:
+        try:
+            return _rpc_call(url, method, params, timeout), url
+        except Exception as exc:  # noqa: BLE001 — try the next URL
+            last_exc = exc
+    raise last_exc
+
+
 def chain_status(network: str = "mainnet", timeout: float = 5.0) -> dict:
     """Probe the live Robinhood Chain. Fail-soft: never raises.
 
     Returns a dict with network, chain_id, block_number (ints when the
-    probe succeeds, None when it does not), rpc, explorer and
-    reachable. A failed probe means "chain unreachable from here",
-    never "chain does not exist".
-    """
+    probe succeeds, None when it does not), rpc, rpc_used (the URL
+    that actually answered, or None), explorer and reachable. A failed
+    probe means "chain unreachable from here", never "chain does not
+    exist". The chainId is checked on every probe, so a fallback that
+    answers for a different chain is rejected, not trusted."""
     if network not in NETWORKS:
         return {"network": network, "reachable": False,
                 "error": f"unknown network: {network}"}
     net = NETWORKS[network]
     try:
-        chain_hex = _rpc_call(net["rpc"], "eth_chainId", timeout)
-        block_hex = _rpc_call(net["rpc"], "eth_blockNumber", timeout)
+        chain_hex, rpc_used = rpc_call(network, "eth_chainId",
+                                       timeout=timeout)
+        block_hex, _ = rpc_call(network, "eth_blockNumber",
+                                timeout=timeout)
         chain_id = int(chain_hex, 16)
         block = int(block_hex, 16)
         ok = chain_id == net["chain_id"]
@@ -270,6 +310,7 @@ def chain_status(network: str = "mainnet", timeout: float = 5.0) -> dict:
             "block_number": block,
             "block_number_hex": block_hex,
             "rpc": net["rpc"],
+            "rpc_used": rpc_used,
             "explorer": net["explorer"],
             "reachable": ok,
             "error": None if ok else "chain id mismatch",
@@ -285,6 +326,7 @@ def chain_status(network: str = "mainnet", timeout: float = 5.0) -> dict:
             "block_number": None,
             "block_number_hex": None,
             "rpc": net["rpc"],
+            "rpc_used": None,
             "explorer": net["explorer"],
             "reachable": False,
             "error": str(exc)[:200],
