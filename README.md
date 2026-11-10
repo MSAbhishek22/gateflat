@@ -17,7 +17,7 @@ and a prepared onchain record, and $WIF holders run the gate at half price.
 | $WIF flywheel (live balanceOf read + 50% holder discount) | Written, tested with mocked RPC; live read attempted, RPC timed out — discount activates when the RPC answers |
 | Contracts (`GateAudit.sol`, `PolicyRegistry.sol`) | Written, **NOT compiled, NOT deployed** (no solc/Foundry in sandbox) |
 | Front-end (Flat Globe: Interactive 3D + Magnetic hover) + local demo server | Written, smoke-tested locally (`/` 200, `/api/gate` ALLOW + BLOCK verified) |
-| GitHub repo | Not created |
+| GitHub repo | **Created + pushed 10 Nov ~20:00 IST** — [MSAbhishek22/gateflat](https://github.com/MSAbhishek22/gateflat), head `3960c9055535` (33 files, read back live) |
 | Vercel deploy | Not attempted |
 | Demo video | Not recorded |
 | Submission | Not submitted — deadline 12 Nov 23:00 IST |

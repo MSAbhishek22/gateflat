@@ -28,6 +28,12 @@ a state; README/CONCEPT/DESIGN defer to it.
   `/api/gate` BLOCK on a leaked GitHub token (secret absent from the
   receipt), `/api/wif` bad address → 400, `/api/credits` consistent
   across two runs (9.98 USDG).
+- GitHub repo: **created + pushed 10 Nov ~20:00 IST** —
+  https://github.com/MSAbhishek22/gateflat, head
+  `3960c905553575f479103a7d27c2fca33e53f940` (33 files; provider
+  "Initial commit" underneath, as expected — our README replaced
+  the generated one). Read back live: README.md on main is the
+  GateFlat README. Sync record saved.
 
 ## What is SCAFFOLD (written, not live)
 
@@ -37,7 +43,6 @@ a state; README/CONCEPT/DESIGN defer to it.
 - Front-end: built, serves locally only. No live URL.
 - Demo video: not recorded. No video URL exists.
 - Submission: not submitted. No confirmation exists.
-- GitHub repo: not created. No repo URL exists.
 
 ## What is UNKNOWN / UNVERIFIED (do not claim)
 

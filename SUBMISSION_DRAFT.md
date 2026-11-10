@@ -9,8 +9,9 @@ below is submitted anywhere.
 
 ## What the official rules require
 
-- **Visible repo** (rule 5) — GitHub repo `gateflat` (to be created;
-  push via connector after user approval).
+- **Visible repo** (rule 5) — https://github.com/MSAbhishek22/gateflat
+  (public, head `3960c905553575f479103a7d27c2fca33e53f940`, 33 files,
+  read back live 10 Nov ~20:00 IST).
 - **Demo video** (rule 5) — screen recording of the LIVE URL with
   ≥1 real action (ALLOW run + $WIF balance check), YouTube Public.
 - **Real transactions** (rule 5) — PENDING the user's wallet. The gate
@@ -41,7 +42,7 @@ Globe front-end.
 ## Links (fill in as they land)
 
 - Live URL: _TBD (Vercel deploy 11 Nov)_
-- Repo: _TBD (github.com/MSAbhishek22/gateflat)_
+- Repo: https://github.com/MSAbhishek22/gateflat (public, head `3960c9055535`)
 - Demo video: _TBD (YouTube Public)_
 - Contracts: GateAudit + PolicyRegistry — written, NOT deployed
   (no solc in sandbox; state this in the form)
