@@ -237,6 +237,31 @@ class TestRpcFallback(unittest.TestCase):
             rpc_call("mainnet", "eth_chainId")
         self.assertEqual(_mock.call_count, len(MAINNET_RPCS))
 
+    def test_rpc_call_sends_real_user_agent(self):
+        # The default "Python-urllib/3.x" UA is blocked outright by
+        # several RPC front-doors (official RPC 403s Vercel with it).
+        seen = {}
+
+        class FakeResp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def read(self):
+                return b'{"jsonrpc":"2.0","id":1,"result":"0x1237"}'
+
+        def capture(req, timeout=None):
+            seen["ua"] = req.get_header("User-agent")
+            return FakeResp()
+
+        with patch.object(robinhood.urllib.request, "urlopen", capture):
+            result, used = rpc_call("mainnet", "eth_chainId")
+        self.assertEqual(result, "0x1237")
+        self.assertIn("GateFlat", seen["ua"])
+        self.assertNotIn("Python-urllib", seen["ua"])
+
 
 if __name__ == "__main__":
     unittest.main()

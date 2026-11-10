@@ -18,9 +18,9 @@ a state; README/CONCEPT/DESIGN defer to it.
 - New integration layer (`app/robinhood.py`, `app/wif.py`,
   `app/credits.py`, `app/gate.py`, `app/service.py`) + local demo server
   + Flat Globe front-end — written and tested.
-- **Tests: 112/112 PASS** — `python3 -m unittest discover -s tests`,
+- **Tests: 113/113 PASS** — `python3 -m unittest discover -s tests`,
   Python 3.12, Linux sandbox, ~0.6s.
-  Breakdown: scanner 18 (ported) + policy 6 (ported) + robinhood 36
+  Breakdown: scanner 18 (ported) + policy 6 (ported) + robinhood 37
   (new) + credits 10 (new) + gate 19 (adapted) + service 12 (new) +
   wif 11 (new).
 - Local smoke test 10 Nov ~19:50 IST: `/` 200 (17,677 B Flat Globe UI),

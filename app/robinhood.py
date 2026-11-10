@@ -252,7 +252,14 @@ def _rpc_call(rpc_url: str, method: str, params=None,
     ).encode("utf-8")
     req = urllib.request.Request(
         rpc_url, data=body,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            # A real client UA: the default "Python-urllib/3.x" UA is
+            # blocked outright by several RPC front-doors (the
+            # official RPC 403s Vercel's servers with it). Identify
+            # the project instead of looking like a generic bot.
+            "User-Agent": "GateFlat/1.0 (+https://gateflat.vercel.app)",
+        },
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=timeout) as resp:

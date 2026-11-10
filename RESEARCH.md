@@ -72,10 +72,15 @@ Tangem, Triport, viem chain definitions — consistent 10 Nov 2026.
   rejects requests from Vercel's servers. Public no-key fallbacks
   (publicnode, drpc, blockmachine — vectr.bot listing, secondary)
   were added the same evening (`rpc_call` tries official first,
-  then fallbacks; chainId checked every time). The sandbox cannot
-  reach ANY RPC right now (all four endpoints time out from here),
-  so the fallback is **verified by mocked tests only** — the live
-  /api/chain after redeploy is the real test.
+  then fallbacks; chainId checked every time). **Redeploy check
+  ~20:05 IST: new code IS live (`rpc_used` field present) but still
+  unreachable:false with 403** — and the whole probe answered in
+  ~1.4s, so the fallbacks failed fast too, not by timeout. New
+  hypothesis: the RPC front-doors block the default
+  "Python-urllib/3.x" User-Agent. **Fix shipped:** `_rpc_call` now
+  sends `User-Agent: GateFlat/1.0 (+https://gateflat.vercel.app)`.
+  Live re-check pending the auto-deploy. If the UA fix also fails,
+  next option is the Blockscout explorer API as a read path.
 
 ## 4. $WIF token — UNVERIFIED (secondary source only)
 
