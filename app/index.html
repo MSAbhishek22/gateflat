@@ -132,6 +132,15 @@
   .mono { font-family: ui-monospace, monospace; }
   footer { max-width: 1080px; margin: 0 auto; padding: 0 20px 36px; color: var(--muted); font-size: 13px; }
   .motion-toggle { position: fixed; right: 14px; bottom: 14px; z-index: 10; }
+  /* First-load 3D signature (J8): the Three.js gate band. */
+  .hero3d { max-width: 1080px; margin: 0 auto; padding: 4px 20px 0; }
+  .hero3d canvas { width: 100%; height: 300px; display: block; background: #07090c; border: 1px solid var(--line); border-radius: var(--radius); touch-action: pan-y; cursor: grab; }
+  .hero3d canvas:active { cursor: grabbing; }
+  .hero3d-fallback { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; text-align: center; }
+  .hero3d-caption { color: var(--muted); font-size: 13.5px; margin: 8px 2px 0; }
+  .scroll-cue { text-align: center; margin: 10px 0 0; font-weight: 700; }
+  .scroll-cue a { text-decoration: none; }
+  .scroll-cue a:hover { text-decoration: underline; }
   body.low-motion .globe, body.low-motion .globe .core, body.low-motion .verdict { animation: none; }
   body.low-motion .btn:hover { transform: none; }
   @media (prefers-reduced-motion: reduce) {
@@ -139,6 +148,7 @@
     html { scroll-behavior: auto; }
   }
 </style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
 </head>
 <body>
 <header>
@@ -156,6 +166,17 @@
     </div>
   </div>
 </header>
+
+<!-- First-load 3D signature (J8): the $WIF gate as real Three.js — the
+     portal ring, passing/holding decision cubes and the gold $WIF coin.
+     Drawn on load with no click; the old CSS globe in the header stays as
+     a static mark. -->
+<section class="hero3d" id="hero3d" aria-label="The gate in 3D">
+  <canvas id="hero3d-canvas" width="640" height="300" role="img" aria-label="3D model of the GateFlat gate: a portal ring between two pillars. Green cubes pass through the gate, red cubes are held, and a gold WIF coin orbits the ring. Drag to rotate."></canvas>
+  <p class="hero3d-fallback" id="hero3d-fallback" hidden>The gate, in 3D, needs WebGL — the Gate console below works the same way: green passes, red holds.</p>
+  <p class="hero3d-caption">The gate in 3D — every call passes through the ring: green cubes pass, red cubes are held, $WIF holders pay half. Drag to rotate.</p>
+  <p class="scroll-cue"><a href="#gate-form">Scroll ↓ — draft a contract call and run the gate</a></p>
+</section>
 
 <main>
   <div class="grid">
@@ -383,5 +404,170 @@ $("motion-btn").addEventListener("click", () => {
 refreshChain(); refreshCredits(); refreshReceipts();
 setInterval(refreshChain, 30000);
 </script>
+
+<script type="module">
+// GateFlat — first-load 3D signature (J8). The $WIF gate as real Three.js:
+// portal ring between two pillars, green cubes that pass, red cubes that
+// are held, and a gold $WIF coin orbiting the ring. Inline because the
+// Python service only serves / and /index.html (no static files).
+// Auto-initialises on load, no click needed. Drag to rotate.
+import * as THREE from 'three';
+
+const canvas = document.getElementById('hero3d-canvas');
+const fallback = document.getElementById('hero3d-fallback');
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const lowMotion = () => document.body.classList.contains('low-motion') || reduced;
+
+function showFallback() {
+  if (canvas) canvas.hidden = true;
+  if (fallback) fallback.hidden = false;
+}
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+} catch (err) {
+  showFallback();
+  throw err;
+}
+if (renderer) {
+  const wrap = document.getElementById('hero3d');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x07090c);
+
+  const camera = new THREE.PerspectiveCamera(38, 2, 0.1, 100);
+  camera.position.set(0, 0.7, 7.2);
+  camera.lookAt(0, 0.2, 0);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  const key = new THREE.DirectionalLight(0xffffff, 1.5);
+  key.position.set(3, 6, 4);
+  scene.add(key);
+  const greenGlow = new THREE.PointLight(0x00d084, 12, 8);
+  greenGlow.position.set(0, 0.2, 1.5);
+  scene.add(greenGlow);
+
+  const gate = new THREE.Group();
+  scene.add(gate);
+
+  const pillarMat = new THREE.MeshStandardMaterial({ color: 0x121823, roughness: 0.4, metalness: 0.6 });
+  [-1.7, 1.7].forEach((x) => {
+    const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3.4, 0.5), pillarMat);
+    pillar.position.set(x, 0, 0);
+    gate.add(pillar);
+    const cap = new THREE.Mesh(
+      new THREE.BoxGeometry(0.66, 0.18, 0.66),
+      new THREE.MeshStandardMaterial({ color: 0x00d084, roughness: 0.35, metalness: 0.5 })
+    );
+    cap.position.set(x, 1.79, 0);
+    gate.add(cap);
+  });
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(4.1, 0.5, 0.6), pillarMat);
+  lintel.position.set(0, 1.95, 0);
+  gate.add(lintel);
+
+  // Portal ring + glow disc.
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(1.05, 0.09, 16, 72),
+    new THREE.MeshStandardMaterial({ color: 0x00d084, emissive: 0x00d084, emissiveIntensity: 0.9, roughness: 0.3, metalness: 0.4 })
+  );
+  ring.position.set(0, 0.2, 0);
+  gate.add(ring);
+  const portal = new THREE.Mesh(
+    new THREE.CircleGeometry(0.96, 48),
+    new THREE.MeshBasicMaterial({ color: 0x00d084, transparent: true, opacity: 0.13, side: THREE.DoubleSide })
+  );
+  portal.position.set(0, 0.2, 0);
+  gate.add(portal);
+
+  // Decision cubes orbiting through the ring plane: green pass, red hold.
+  const orbit = new THREE.Group();
+  orbit.position.set(0, 0.2, 0);
+  gate.add(orbit);
+  const cubeGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+  const passMat = new THREE.MeshStandardMaterial({ color: 0x00d084, emissive: 0x00d084, emissiveIntensity: 0.35, roughness: 0.4 });
+  const holdMat = new THREE.MeshStandardMaterial({ color: 0xff5d6c, emissive: 0xff5d6c, emissiveIntensity: 0.35, roughness: 0.4 });
+  const cubes = [];
+  [0, 1, 2, 3, 4].forEach((i) => {
+    const cube = new THREE.Mesh(cubeGeo, i < 3 ? passMat : holdMat);
+    const a = (i / 5) * Math.PI * 2;
+    cube.position.set(Math.cos(a) * 1.95, Math.sin(a) * 1.95, 0);
+    orbit.add(cube);
+    cubes.push(cube);
+  });
+
+  // Gold $WIF coin on a wider, counter-rotating orbit.
+  const coinOrbit = new THREE.Group();
+  coinOrbit.position.set(0, 0.2, 0);
+  gate.add(coinOrbit);
+  const coin = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.42, 0.42, 0.08, 40),
+    new THREE.MeshStandardMaterial({ color: 0xf5c542, roughness: 0.25, metalness: 0.85 })
+  );
+  coin.rotation.x = Math.PI / 2;
+  coin.position.set(2.9, 0, 0);
+  coinOrbit.add(coin);
+  const coinRim = new THREE.Mesh(
+    new THREE.TorusGeometry(0.42, 0.03, 12, 48),
+    new THREE.MeshStandardMaterial({ color: 0xc9920e, roughness: 0.3, metalness: 0.8 })
+  );
+  coinRim.position.copy(coin.position);
+  coinOrbit.add(coinRim);
+
+  // Ground grid.
+  const grid = new THREE.GridHelper(11, 22, 0x1e2635, 0x121823);
+  grid.position.y = -1.85;
+  scene.add(grid);
+
+  // Drag to rotate the gate; gentle sway otherwise (off for low motion).
+  let dragging = false, lastX = 0, lastY = 0;
+  let rotY = 0, rotX = 0, autoSpin = !lowMotion();
+  canvas.addEventListener('pointerdown', (e) => {
+    dragging = true; lastX = e.clientX; lastY = e.clientY; autoSpin = false;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    rotY = Math.max(-1.1, Math.min(1.1, rotY + (e.clientX - lastX) * 0.006));
+    rotX = Math.max(-0.35, Math.min(0.35, rotX + (e.clientY - lastY) * 0.003));
+    lastX = e.clientX; lastY = e.clientY;
+  });
+  const endDrag = () => { dragging = false; };
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') { rotY = Math.max(-1.1, rotY - 0.15); autoSpin = false; }
+    if (e.key === 'ArrowRight') { rotY = Math.min(1.1, rotY + 0.15); autoSpin = false; }
+  });
+  canvas.tabIndex = 0;
+
+  function resize() {
+    const w = wrap.clientWidth || 640;
+    const h = 300;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const clock = new THREE.Clock();
+  function tick() {
+    requestAnimationFrame(tick);
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const t = clock.elapsedTime;
+    if (autoSpin && !dragging && !lowMotion()) rotY = Math.sin(t * 0.22) * 0.3;
+    gate.rotation.y = rotY;
+    gate.rotation.x = rotX;
+    orbit.rotation.z += lowMotion() ? 0 : dt * 0.45;
+    coinOrbit.rotation.z -= lowMotion() ? 0 : dt * 0.3;
+    cubes.forEach((c, i) => { c.rotation.x += dt * 0.4; c.rotation.y += dt * (0.3 + i * 0.05); });
+    ring.rotation.z += lowMotion() ? 0 : dt * 0.1;
+    renderer.render(scene, camera);
+  }
+  tick();
+}
+</script>
+
 </body>
 </html>
